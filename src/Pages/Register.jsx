@@ -19,11 +19,13 @@ const auth = getAuth(firebase_app);
 export const Register = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { user, isLoading } = useSelector((store) => ({
+  const { user = [], isLoading } = useSelector((store) => ({
     user: store.LoginReducer.user,
     isLoading: store.LoginReducer.isLoading,
   }));
 
+  const userExists = (phoneNumber) =>
+    Array.isArray(user) && user.some((u) => u.number === phoneNumber.replace("+", ""));
 
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -48,9 +50,6 @@ export const Register = () => {
   useEffect(() => {
     dispatch(fetch_users());
   }, [dispatch]);
-
-  const userExists = (phoneNumber) =>
-    user.some((u) => u.number === phoneNumber.replace("+", ""));
 
   const handleVerifyNumber = async () => {
     setLoading(true);
