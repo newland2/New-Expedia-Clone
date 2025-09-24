@@ -10,72 +10,53 @@ import {
   REGISTER_SUCCESSFUL,
 } from "./auth.actionType";
 
-export const login_request = () => {
-  return { type: LOGIN_REQUEST };
-};
+// Action creators
+export const login_request = () => ({ type: LOGIN_REQUEST });
+export const login_success = (payload) => ({ type: LOGIN_SUCCESSFUL, payload });
+export const login_error = () => ({ type: LOGIN_ERROR });
 
-export const login_success = (payload) => {
-  return { type: LOGIN_SUCCESSFUL, payload };
-};
-export const login_error = () => {
-  return { type: LOGIN_ERROR };
-};
+export const register_request = () => ({ type: REGISTER_REQUEST });
+export const register_success = (payload) => ({ type: REGISTER_SUCCESSFUL, payload });
+export const register_error = () => ({ type: REGISTER_ERROR });
 
-export const register_request = () => {
-  return { type: REGISTER_REQUEST };
-};
+export const get_users = (payload) => ({ type: GET_USERS, payload });
+export const handlelogout_user = () => ({ type: LOGOUT_USER });
 
-export const register_success = (payload) => {
-  return { type: REGISTER_SUCCESSFUL, payload };
-};
-export const register_error = () => {
-  return { type: REGISTER_ERROR };
-};
-
-export const get_users = (payload) => {
-  return { type: GET_USERS, payload };
-};
-
-export const handlelogout_user = () => {
-  return { type: LOGOUT_USER };
-};
-
+// Register user
 export const userRigister = (userData) => async (dispatch) => {
   dispatch(register_request());
-  let res = await axios
-    .post(`http://localhost:8080/users`, userData)
-    .then((res) => {
-      dispatch(register_success(res.data));
-      // console.log(res.data)
-    })
-    .catch((err) => {
-      dispatch(register_error());
-    });
+  try {
+    const cleanedUser = {
+      ...userData,
+      number: userData.number.startsWith("+")
+        ? userData.number.slice(1)
+        : userData.number,
+    };
+    const res = await axios.post(`/api/users`, cleanedUser); // 🔥 use relative path or deployed backend URL
+    dispatch(register_success(res.data));
+  } catch (err) {
+    dispatch(register_error());
+  }
 };
 
-// get users
-
-export const fetch_users = (dispatch) => {
+// Fetch users
+export const fetch_users = () => async (dispatch) => {
   dispatch(register_request());
-  axios
-    .get(`http://localhost:8080/users`)
-    .then((res) => {
-      dispatch(get_users(res.data));
-    })
-    .catch((err) => {
-      dispatch(register_error());
-    });
+  try {
+    const res = await axios.get(`/api/users`); // 🔥 use relative path or deployed backend URL
+    dispatch(get_users(res.data));
+  } catch (err) {
+    dispatch(register_error());
+  }
 };
 
-// Logint funcnality
-
+// Login user
 export const login_user = (loginData) => (dispatch) => {
   dispatch(login_success(loginData));
-  // localStorage.setItem("MkuserData", JSON.stringify(loginData));
-  // localStorage.setItem("MkisAuth", JSON.stringify(true));
 };
 
-export const logout_user = (dispatch) => {
+// Logout user
+export const logout_user = () => (dispatch) => {
   dispatch(handlelogout_user());
   localStorage.setItem("MkuserData", JSON.stringify({}));
   localStorage.setItem("MkisAuth", JSON.stringify(false));
