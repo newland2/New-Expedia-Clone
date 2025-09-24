@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import "./login.css";
 import firebase_app from "../01_firebase/config_firebase";
 import {
@@ -9,196 +9,176 @@ import {
 } from "firebase/auth";
 import { useDispatch, useSelector } from "react-redux";
 import { fetch_users, login_user } from "../Redux/Authantication/auth.action";
+import PhoneInput from "react-phone-input-2";
+import "react-phone-input-2/lib/style.css";
 
 const auth = getAuth(firebase_app);
-const state = {
-  number: "",
-  otp: "",
-  verify: false,
-};
 
 export const Login = () => {
-  const [check, setCheck] = useState(state);
-  // const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { isAuth, activeUser, user } = useSelector((store) => {
-    return {
-      isAuth: store.LoginReducer.isAuth,
-      activeUser: store.LoginReducer.activeUser,
-      user: store.LoginReducer.user,
-    };
-  });
+  const { isAuth, user } = useSelector((store) => ({
+    isAuth: store.LoginReducer.isAuth,
+    user: store.LoginReducer.user,
+  }));
 
-  const { number, otp, verify } = check;
-
-  let exist = false;
-  let data = {};
-
-  for (let i = 0; i <= user.length - 1; i++) {
-    if (user[i].number == number) {
-      exist = true;
-      data = user[i];
-      break;
-    }
-  }
-  // console.log(user)
-  //
-
-  function onCapture() {
-    window.recaptchaVerifier = new RecaptchaVerifier(
-      "recaptcha-container",
-      {
-        size: "invisible",
-        callback: (response) => {
-          handleVerifyNumber();
-          // reCAPTCHA solved, allow signInWithPhoneNumber.
-          // ...
-        },
-      },
-      auth
-    );
-  }
-
-  function handleVerifyNumber() {
-    document.querySelector("#nextText").innerText = "Please wait...";
-    onCapture();
-    const phoneNumber = `+91${number}`;
-    const appVerifier = window.recaptchaVerifier;
-    if (number.length === 10) {
-      if (exist) {
-        signInWithPhoneNumber(auth, phoneNumber, appVerifier)
-          .then((confirmationResult) => {
-            // SMS sent. Prompt user to type the code from the message, then sign the
-            // user in with confirmationResult.confirm(code).
-            window.confirmationResult = confirmationResult;
-            setCheck({ ...check, verify: true });
-            document.querySelector(
-              "#loginMesageSuccess"
-            ).innerHTML = `Otp Send To ${number} !`;
-            document.querySelector("#loginMesageError").innerHTML = "";
-            document.querySelector("#nextText").style.display = "none";
-            // ...
-          })
-          .catch((error) => {
-            // Error; SMS not sent
-            // document.querySelector("#nextText").innerText = "Server Error"
-            // ...
-          });
-      } else {
-        document.querySelector("#loginMesageSuccess").innerHTML = ``;
-        document.querySelector("#loginMesageError").innerHTML =
-          "User does not exist Please Create Your Account !";
-          setInterval(() => {
-            window.location="/register"
-          }, 1000);
-      }
-      //
-    } else {
-      document.querySelector("#loginMesageSuccess").innerHTML = ``;
-      document.querySelector("#loginMesageError").innerHTML =
-        "Mobile Number is Invalid !";
-    }
-  }
-
-  //
-  function verifyCode() {
-    window.confirmationResult
-      .confirm(otp)
-      .then((result) => {
-        // User signed in successfully.
-        const user = result.user;
-
-        document.querySelector(
-          "#loginMesageSuccess"
-        ).innerHTML = `Verifyed Successful`;
-        document.querySelector("#loginMesageError").innerHTML = "";
-
-        dispatch(login_user(data));
-        // ...
-      })
-      .catch((error) => {
-        // User couldn't sign in (bad verification code?)
-        document.querySelector("#loginMesageSuccess").innerHTML = ``;
-        document.querySelector("#loginMesageError").innerHTML = "Invalid OTP";
-        // ...
-      });
-  }
-
-  //
-  const handleChangeMobile = (e) => {
-    let val = e.target.value;
-    setCheck({ ...check, [e.target.name]: val });
-  };
-  // console.log(isAuth)
+  const [phone, setPhone] = useState(""); // full number with +
+  const [otp, setOtp] = useState("");
+  const [verifyStep, setVerifyStep] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    dispatch(fetch_users);
+    if (!window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(
+        "recaptcha-container",
+        { size: "invisible" },
+        auth
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    dispatch(fetch_users());
     if (isAuth) {
       window.location = "/";
     }
-  }, [isAuth]);
+  }, [isAuth, dispatch]);
+
+  const findUser = (phoneNumber) =>
+    user.find((u) => u.number === phoneNumber.replace("+", ""));
+
+  const handleVerifyNumber = async () => {
+    setLoading(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    if (!phone || phone.length < 8) {
+      setErrorMsg("Please enter a valid phone number.");
+      setLoading(false);
+      return;
+    }
+
+    const existingUser = findUser(phone);
+    if (!existingUser) {
+      setErrorMsg("User does not exist. Redirecting to Register...");
+      setTimeout(() => {
+        window.location = "/register";
+      }, 1000);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const appVerifier = window.recaptchaVerifier;
+      const confirmationResult = await signInWithPhoneNumber(
+        auth,
+        phone, // Firebase requires "+"
+        appVerifier
+      );
+      window.confirmationResult = confirmationResult;
+      setVerifyStep(true);
+      setSuccessMsg(`OTP sent to ${phone}`);
+    } catch (error) {
+      console.error("SMS not sent:", error);
+      setErrorMsg("Server Error. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyCode = async () => {
+    setErrorMsg("");
+    setSuccessMsg("");
+    setLoading(true);
+
+    try {
+      const result = await window.confirmationResult.confirm(otp);
+      const firebaseUser = result.user;
+
+      setSuccessMsg("Verified Successfully!");
+      dispatch(login_user(findUser(phone))); // strips + inside
+    } catch (error) {
+      console.error("Invalid OTP:", error);
+      setErrorMsg("Invalid OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <>
-      <div className="mainLogin">
-        <div id="recaptcha-container"></div>
-        <div className="loginBx">
-        <div className="logoImgdiv"><img className="imglogo" src="https://i.postimg.cc/dQmyj8pd/Hang-In-There-1.jpg" alt="" /></div>
-           
-          <div className="loginHead">
-          <hr /><hr /><hr />
-            <h1>SignIn</h1>
-          </div>
+    <div className="mainLogin">
+      <div id="recaptcha-container"></div>
+
+      <div className="loginBx">
+        <div className="logoImgdiv">
+          <img
+            className="imglogo"
+            src="https://i.postimg.cc/dQmyj8pd/Hang-In-There-1.jpg"
+            alt="logo"
+          />
+        </div>
+
+        <div className="loginHead">
+          <hr />
+          <hr />
+          <hr />
+          <h1>Sign In</h1>
+        </div>
+
+        <div className="loginInputB">
+          <label>Enter Your Phone Number</label>
+          <PhoneInput
+            country={"us"}
+            value={phone}
+            onChange={(value) => setPhone("+" + value)}
+            inputStyle={{ width: "100%" }}
+            disabled={verifyStep}
+          />
+          <button disabled={verifyStep || loading} onClick={handleVerifyNumber}>
+            {loading ? "Please wait..." : "Send OTP"}
+          </button>
+        </div>
+
+        {verifyStep && (
           <div className="loginInputB">
-            <label htmlFor="">Enter Your Number</label>
+            <label>Enter Your OTP</label>
             <span>
               <input
                 type="number"
-                readOnly={verify}
-                name="number"
-                value={number}
-                onChange={(e) => handleChangeMobile(e)}
-                placeholder="Number"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
               />
-              <button
-                disabled={verify}
-                onClick={handleVerifyNumber}
-                id="nextText"
-              >
-                SignIn
+              <button disabled={loading} onClick={verifyCode}>
+                Continue
               </button>
             </span>
           </div>
-          {verify ? (
-            <div className="loginInputB">
-              <label htmlFor="">Enter Your OTP</label>
-              <span>
-                <input
-                  type="number"
-                  name="otp"
-                  value={otp}
-                  onChange={(e) => handleChangeMobile(e)}
-                />
-                <button onClick={verifyCode}>Continue</button>
-              </span>
-            </div>
-          ) : (
-            ""
-          )}
+        )}
 
-          <div className="loginTerms">
-            {/* <h2>Or USE ARE BUSSINESS ACCOUNT WITH</h2>
-                    <p>By proceeding, you agree to MakeMyTrip'sT&Csand Privacy</p> */}
-            <Link to="/register">Don't have an Account</Link>
-            <Link to="/admin">Admin Login</Link>
-            <div className="inpChecbx"><input className="inp" type="checkbox" /> <h2>Keep me signed in</h2></div>
-            <p>Selecting this checkbox will keep you signed into your account on this device until you sign out. Do not select this on shared devices.</p>
-            <h6>By signing in, I agree to the Expedia <span> Terms and Conditions</span>, <span>Privacy Statement</span> and <span>Expedia Rewards Terms and Conditions</span>.</h6>
+        <div className="loginTerms">
+          <Link to="/register">Don't have an Account</Link>
+          <Link to="/admin">Admin Login</Link>
+          <div className="inpChecbx">
+            <input className="inp" type="checkbox" />{" "}
+            <h2>Keep me signed in</h2>
           </div>
-          <h3 id="loginMesageError"></h3>
-          <h3 id="loginMesageSuccess"></h3>
+          <p>
+            Selecting this checkbox will keep you signed into your account on
+            this device until you sign out. Do not select this on shared
+            devices.
+          </p>
+          <h6>
+            By signing in, I agree to the Expedia{" "}
+            <span>Terms and Conditions</span>,{" "}
+            <span>Privacy Statement</span> and{" "}
+            <span>Expedia Rewards Terms and Conditions</span>.
+          </h6>
         </div>
+
+        {errorMsg && <h3 id="loginMessageError">{errorMsg}</h3>}
+        {successMsg && <h3 id="loginMessageSuccess">{successMsg}</h3>}
       </div>
-    </>
+    </div>
   );
 };
