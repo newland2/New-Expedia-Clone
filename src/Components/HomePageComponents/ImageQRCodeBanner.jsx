@@ -19,7 +19,7 @@ const ImageQRCodeBanner = () => {
 
         <Stack>
             <CardBody>
-            <Heading pl={3} py='2' fontSize={'3xl'} fontWeight='semibold' textAlign={'left'}>Go with the Chalo Ghume App</Heading>
+            <Heading pl={3} py='2' fontSize={'3xl'} fontWeight='semibold' textAlign={'left'}>Go with the New Expedia App</Heading>
 
             <Text pl={3} py='2' textAlign={'left'} >
             Save even more - get up to 20% on select hotels and earn double the points when you book on the app. Our app deals help you to save on trips so you can travel more and manage it all on the go.
