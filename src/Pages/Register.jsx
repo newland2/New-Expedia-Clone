@@ -154,7 +154,7 @@ export const Register = () => {
       <div className="mainLogin">
         <div id="recaptcha-container"></div>
         <div className="loginBx">
-        <div className="logoImgdivReg"><img className="imglogoReg" src="https://i.postimg.cc/QxksRNkQ/expedio-Logo.jpg':'https://i.postimg.cc/fRx4D7QH/logo3.png" alt="" /></div>
+        <div className="logoImgdivReg"><img className="imglogoReg" src="https://i.postimg.cc/dQmyj8pd/Hang-In-There-1.jpg" alt="" /></div>
 
           <div className="loginHead">
           <hr /><hr /><hr />
