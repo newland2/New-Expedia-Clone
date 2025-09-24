@@ -13,6 +13,9 @@ import Navbar from "../Components/Navbar";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
 
+// ✅ define auth like in Login.jsx
+const auth = getAuth(firebase_app);
+
 export const Register = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -20,6 +23,7 @@ export const Register = () => {
     user: store.LoginReducer.user,
     isLoading: store.LoginReducer.isLoading,
   }));
+
 
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
